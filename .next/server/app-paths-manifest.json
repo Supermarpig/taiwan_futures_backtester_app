@@ -1,0 +1,5 @@
+{
+  "/backtest/result/[id]/page": "app/backtest/result/[id]/page.js",
+  "/backtest/page": "app/backtest/page.js",
+  "/page": "app/page.js"
+}
