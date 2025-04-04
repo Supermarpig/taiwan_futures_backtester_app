@@ -2,6 +2,10 @@ import { Strategy } from './base';
 import { MACrossoverStrategy } from './maCrossover';
 import { RSIStrategy } from './rsiStrategy';
 import { BreakoutStrategy } from './breakoutStrategy';
+import { BollingerBandsStrategy } from './bollingerBandsStrategy';
+import { MACDStrategy } from './macdStrategy';
+import { DualMAStrategy } from './dualMAStrategy';
+import { StrategyCombination } from './strategyCombination';
 
 /**
  * 策略註冊表
@@ -16,6 +20,26 @@ export class StrategyRegistry {
     this.registerStrategy(new MACrossoverStrategy());
     this.registerStrategy(new RSIStrategy());
     this.registerStrategy(new BreakoutStrategy());
+    this.registerStrategy(new BollingerBandsStrategy());
+    this.registerStrategy(new MACDStrategy());
+    this.registerStrategy(new DualMAStrategy());
+    
+    // 註冊策略組合
+    const trendStrategies = [
+      new MACrossoverStrategy(),
+      new MACDStrategy(),
+      new DualMAStrategy()
+    ];
+    
+    const meanReversionStrategies = [
+      new RSIStrategy(),
+      new BollingerBandsStrategy(),
+      new BreakoutStrategy()
+    ];
+    
+    this.registerStrategy(new StrategyCombination(trendStrategies));
+    this.registerStrategy(new StrategyCombination(meanReversionStrategies));
+    this.registerStrategy(new StrategyCombination([...trendStrategies, ...meanReversionStrategies]));
   }
 
   /**

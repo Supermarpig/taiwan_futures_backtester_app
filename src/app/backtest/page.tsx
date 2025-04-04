@@ -1,82 +1,107 @@
-'use client'
-import { useState, useEffect } from 'react'
-import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ArrowLeft, Play, Calendar as CalendarIcon } from 'lucide-react'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { StrategyRegistry } from '@/lib/strategies/registry'
-import { Strategy } from '@/lib/strategies/base'
-import { Calendar } from '@/components/ui/calendar'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { cn } from '@/lib/utils'
-import { format } from 'date-fns'
-import { zhTW } from 'date-fns/locale'
+"use client";
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ArrowLeft, Play, Calendar as CalendarIcon } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { StrategyRegistry } from "@/lib/strategies/registry";
+import { Strategy } from "@/lib/strategies/base";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { zhTW } from "date-fns/locale";
 
 export default function BacktestPage() {
-  const router = useRouter()
-  const [symbol, setSymbol] = useState('')
-  const [startDate, setStartDate] = useState<Date>()
-  const [endDate, setEndDate] = useState<Date>()
-  const [initialCapital, setInitialCapital] = useState('1000000')
-  const [positionSize, setPositionSize] = useState('10')
-  const [commissionRate, setCommissionRate] = useState('0.1425')
-  const [slippage, setSlippage] = useState('0.1')
-  const [selectedStrategy, setSelectedStrategy] = useState('')
-  const [strategies, setStrategies] = useState<Strategy[]>([])
-  const [strategyParams, setStrategyParams] = useState<any>({})
-  
+  const router = useRouter();
+  const [symbol, setSymbol] = useState("");
+  const [startDate, setStartDate] = useState<Date>();
+  const [endDate, setEndDate] = useState<Date>();
+  const [initialCapital, setInitialCapital] = useState("1000000");
+  const [positionSize, setPositionSize] = useState("10");
+  const [commissionRate, setCommissionRate] = useState("0.1425");
+  const [slippage, setSlippage] = useState("0.1");
+  const [selectedStrategy, setSelectedStrategy] = useState("");
+  const [strategies, setStrategies] = useState<Strategy[]>([]);
+  const [strategyParams, setStrategyParams] = useState<any>({});
+
   // 載入策略列表
   useEffect(() => {
-    const registry = StrategyRegistry.getInstance()
-    const allStrategies = registry.getAllStrategies()
-    setStrategies(allStrategies)
-  }, [])
-  
+    const registry = StrategyRegistry.getInstance();
+    const allStrategies = registry.getAllStrategies();
+    setStrategies(allStrategies);
+  }, []);
+
   // 當選擇策略時，載入預設參數
   useEffect(() => {
     if (selectedStrategy) {
-      const registry = StrategyRegistry.getInstance()
-      const defaultParams = registry.getDefaultParameters(selectedStrategy)
-      setStrategyParams(defaultParams)
+      const registry = StrategyRegistry.getInstance();
+      const defaultParams = registry.getDefaultParameters(selectedStrategy);
+      setStrategyParams(defaultParams);
     }
-  }, [selectedStrategy])
-  
+  }, [selectedStrategy]);
+
   // 處理參數變更
   const handleParamChange = (paramId: string, value: any) => {
-    setStrategyParams(prev => ({
+    setStrategyParams((prev: any) => ({
       ...prev,
-      [paramId]: value
-    }))
-  }
-  
+      [paramId]: value,
+    }));
+  };
+
   // 處理回測表單提交
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    
+    e.preventDefault();
+
     // 驗證表單
     if (!symbol || !startDate || !endDate || !selectedStrategy) {
-      alert('請填寫所有必填欄位')
-      return
+      alert("請填寫所有必填欄位");
+      return;
     }
+
+    // 構建回測參數
+    const backtestParams = {
+      symbol,
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+      initialCapital: parseFloat(initialCapital),
+      positionSize: parseFloat(positionSize),
+      commissionRate: parseFloat(commissionRate),
+      slippage: parseFloat(slippage),
+      strategyId: selectedStrategy,
+      strategyParams
+    };
+
+    // 將參數編碼為 URL 安全的字符串
+    const encodedParams = encodeURIComponent(JSON.stringify(backtestParams));
     
-    // 在實際應用中，這裡應該發送回測請求到後端
-    // 目前直接導航到結果頁面進行模擬
-    router.push(`/backtest/result/mock-id`)
-  }
-  
+    // 導航到結果頁面，並傳遞參數
+    router.push(`/backtest/result/${encodedParams}`);
+  };
+
   // 獲取當前選擇的策略
   const getCurrentStrategy = () => {
-    if (!selectedStrategy) return null
-    return strategies.find(s => s.id === selectedStrategy)
-  }
-  
-  const currentStrategy = getCurrentStrategy()
-  
+    if (!selectedStrategy) return null;
+    return strategies.find((s) => s.id === selectedStrategy);
+  };
+
+  const currentStrategy = getCurrentStrategy();
+
   return (
     <main className="flex min-h-screen flex-col p-8">
       <div className="flex items-center mb-8">
@@ -93,19 +118,19 @@ export default function BacktestPage() {
           <div className="lg:col-span-1">
             <Card className="p-6">
               <h2 className="text-xl font-semibold mb-4">回測參數</h2>
-              
+
               <div className="space-y-4">
                 <div>
                   <Label htmlFor="symbol">股票/期貨代碼</Label>
-                  <Input 
-                    id="symbol" 
-                    placeholder="例如: 2330.TW, TXFF" 
+                  <Input
+                    id="symbol"
+                    placeholder="例如: 2330.TW, TXFF"
                     value={symbol}
                     onChange={(e) => setSymbol(e.target.value)}
                     required
                   />
                 </div>
-                
+
                 <div>
                   <Label htmlFor="startDate">開始日期</Label>
                   <Popover>
@@ -118,7 +143,9 @@ export default function BacktestPage() {
                         )}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {startDate ? format(startDate, 'yyyy/MM/dd', { locale: zhTW }) : "選擇開始日期"}
+                        {startDate
+                          ? format(startDate, "yyyy/MM/dd", { locale: zhTW })
+                          : "選擇開始日期"}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
@@ -126,12 +153,15 @@ export default function BacktestPage() {
                         mode="single"
                         selected={startDate}
                         onSelect={setStartDate}
+                        disabled={(date: Date): boolean => {
+                          return date > new Date() || date < new Date('2010-01-01');
+                        }}
                         initialFocus
                       />
                     </PopoverContent>
                   </Popover>
                 </div>
-                
+
                 <div>
                   <Label htmlFor="endDate">結束日期</Label>
                   <Popover>
@@ -144,7 +174,9 @@ export default function BacktestPage() {
                         )}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {endDate ? format(endDate, 'yyyy/MM/dd', { locale: zhTW }) : "選擇結束日期"}
+                        {endDate
+                          ? format(endDate, "yyyy/MM/dd", { locale: zhTW })
+                          : "選擇結束日期"}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
@@ -152,28 +184,34 @@ export default function BacktestPage() {
                         mode="single"
                         selected={endDate}
                         onSelect={setEndDate}
+                        disabled={(date: Date): boolean => {
+                          if (!startDate) return true;
+                          return date > new Date() || 
+                                 date < new Date('2010-01-01') ||
+                                 date < startDate;
+                        }}
                         initialFocus
                       />
                     </PopoverContent>
                   </Popover>
                 </div>
-                
+
                 <div>
                   <Label htmlFor="initialCapital">初始資金</Label>
-                  <Input 
-                    id="initialCapital" 
-                    type="number" 
+                  <Input
+                    id="initialCapital"
+                    type="number"
                     value={initialCapital}
                     onChange={(e) => setInitialCapital(e.target.value)}
                     required
                   />
                 </div>
-                
+
                 <div>
                   <Label htmlFor="positionSize">倉位大小 (%)</Label>
-                  <Input 
-                    id="positionSize" 
-                    type="number" 
+                  <Input
+                    id="positionSize"
+                    type="number"
                     value={positionSize}
                     onChange={(e) => setPositionSize(e.target.value)}
                     min="1"
@@ -181,12 +219,12 @@ export default function BacktestPage() {
                     required
                   />
                 </div>
-                
+
                 <div>
                   <Label htmlFor="commissionRate">手續費率 (%)</Label>
-                  <Input 
-                    id="commissionRate" 
-                    type="number" 
+                  <Input
+                    id="commissionRate"
+                    type="number"
                     value={commissionRate}
                     onChange={(e) => setCommissionRate(e.target.value)}
                     step="0.0001"
@@ -194,12 +232,12 @@ export default function BacktestPage() {
                     required
                   />
                 </div>
-                
+
                 <div>
                   <Label htmlFor="slippage">滑點 (%)</Label>
-                  <Input 
-                    id="slippage" 
-                    type="number" 
+                  <Input
+                    id="slippage"
+                    type="number"
                     value={slippage}
                     onChange={(e) => setSlippage(e.target.value)}
                     step="0.01"
@@ -207,15 +245,18 @@ export default function BacktestPage() {
                     required
                   />
                 </div>
-                
+
                 <div>
                   <Label htmlFor="strategy">選擇策略</Label>
-                  <Select value={selectedStrategy} onValueChange={setSelectedStrategy}>
+                  <Select
+                    value={selectedStrategy}
+                    onValueChange={setSelectedStrategy}
+                  >
                     <SelectTrigger id="strategy">
                       <SelectValue placeholder="選擇交易策略" />
                     </SelectTrigger>
                     <SelectContent>
-                      {strategies.map(strategy => (
+                      {strategies.map((strategy) => (
                         <SelectItem key={strategy.id} value={strategy.id}>
                           {strategy.name}
                         </SelectItem>
@@ -223,11 +264,13 @@ export default function BacktestPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                
-                <Button 
-                  type="submit" 
-                  className="w-full mt-6" 
-                  disabled={!symbol || !startDate || !endDate || !selectedStrategy}
+
+                <Button
+                  type="submit"
+                  className="w-full mt-6"
+                  disabled={
+                    !symbol || !startDate || !endDate || !selectedStrategy
+                  }
                 >
                   <Play className="mr-2 h-4 w-4" />
                   開始回測
@@ -235,7 +278,7 @@ export default function BacktestPage() {
               </div>
             </Card>
           </div>
-          
+
           <div className="lg:col-span-2">
             <Card className="p-6 h-full">
               <Tabs defaultValue="parameters">
@@ -243,27 +286,36 @@ export default function BacktestPage() {
                   <TabsTrigger value="parameters">策略參數</TabsTrigger>
                   <TabsTrigger value="description">策略說明</TabsTrigger>
                 </TabsList>
-                
+
                 <TabsContent value="parameters" className="space-y-4">
                   {currentStrategy ? (
                     <>
-                      {currentStrategy.getParameters().map(param => (
+                      {currentStrategy.getParameters().map((param) => (
                         <div key={param.id}>
                           <Label htmlFor={param.id}>{param.name}</Label>
-                          {param.type === 'number' ? (
-                            <Input 
-                              id={param.id} 
-                              type="number" 
+                          {param.type === "number" ? (
+                            <Input
+                              id={param.id}
+                              type="number"
                               value={strategyParams[param.id] || param.default}
-                              onChange={(e) => handleParamChange(param.id, parseFloat(e.target.value))}
+                              onChange={(e) =>
+                                handleParamChange(
+                                  param.id,
+                                  parseFloat(e.target.value)
+                                )
+                              }
                               min={param.min}
                               max={param.max}
                               step={param.step}
                             />
-                          ) : param.type === 'boolean' ? (
-                            <Select 
-                              value={String(strategyParams[param.id] || param.default)}
-                              onValueChange={(value) => handleParamChange(param.id, value === 'true')}
+                          ) : param.type === "boolean" ? (
+                            <Select
+                              value={String(
+                                strategyParams[param.id] || param.default
+                              )}
+                              onValueChange={(value) =>
+                                handleParamChange(param.id, value === "true")
+                              }
                             >
                               <SelectTrigger id={param.id}>
                                 <SelectValue />
@@ -273,27 +325,36 @@ export default function BacktestPage() {
                                 <SelectItem value="false">否</SelectItem>
                               </SelectContent>
                             </Select>
-                          ) : param.type === 'select' && param.options ? (
-                            <Select 
-                              value={String(strategyParams[param.id] || param.default)}
-                              onValueChange={(value) => handleParamChange(param.id, value)}
+                          ) : param.type === "select" && param.options ? (
+                            <Select
+                              value={String(
+                                strategyParams[param.id] || param.default
+                              )}
+                              onValueChange={(value) =>
+                                handleParamChange(param.id, value)
+                              }
                             >
                               <SelectTrigger id={param.id}>
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                {param.options.map(option => (
-                                  <SelectItem key={option.value} value={option.value}>
+                                {param.options.map((option) => (
+                                  <SelectItem
+                                    key={option.value}
+                                    value={option.value}
+                                  >
                                     {option.label}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
                           ) : (
-                            <Input 
-                              id={param.id} 
+                            <Input
+                              id={param.id}
                               value={strategyParams[param.id] || param.default}
-                              onChange={(e) => handleParamChange(param.id, e.target.value)}
+                              onChange={(e) =>
+                                handleParamChange(param.id, e.target.value)
+                              }
                             />
                           )}
                         </div>
@@ -305,21 +366,23 @@ export default function BacktestPage() {
                     </div>
                   )}
                 </TabsContent>
-                
+
                 <TabsContent value="description">
                   {currentStrategy ? (
                     <div className="space-y-4">
-                      <h3 className="text-lg font-semibold">{currentStrategy.name}</h3>
+                      <h3 className="text-lg font-semibold">
+                        {currentStrategy.name}
+                      </h3>
                       <p>{currentStrategy.description}</p>
-                      
+
                       <h4 className="font-medium mt-4">參數說明:</h4>
                       <ul className="list-disc pl-5 space-y-2">
-                        {currentStrategy.getParameters().map(param => (
+                        {currentStrategy.getParameters().map((param) => (
                           <li key={param.id}>
-                            <strong>{param.name}</strong>: 
-                            {param.type === 'number' ? 
-                              ` 數值範圍 ${param.min} - ${param.max}，預設值 ${param.default}` : 
-                              ` 預設值 ${param.default}`}
+                            <strong>{param.name}</strong>:
+                            {param.type === "number"
+                              ? ` 數值範圍 ${param.min} - ${param.max}，預設值 ${param.default}`
+                              : ` 預設值 ${param.default}`}
                           </li>
                         ))}
                       </ul>
@@ -336,5 +399,5 @@ export default function BacktestPage() {
         </div>
       </form>
     </main>
-  )
+  );
 }

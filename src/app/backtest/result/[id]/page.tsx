@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, use } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -10,66 +10,57 @@ import { BacktestEngine } from '@/lib/backtest/engine'
 import { StrategyRegistry } from '@/lib/strategies/registry'
 import { BacktestResult, TradeDirection } from '@/lib/backtest/types'
 import { Strategy } from '@/lib/strategies/base'
+import { MarketData } from '@/lib/api/yahooFinance'
 import { EquityCurveChart, DrawdownChart, TradeDistributionChart, ProfitDistributionChart } from '@/components/charts'
 import { PriceChartWithTrades } from '@/components/priceChart'
 
 export default function BacktestResultPage({ 
   params 
 }: { 
-  params: { id: string } 
+  params: Promise<{ id: string }> 
 }) {
+  const resolvedParams = use(params)
   const [result, setResult] = useState<BacktestResult | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState('summary')
   
-  // 模擬回測結果載入
+  // 載入回測結果
   useEffect(() => {
     const loadResult = async () => {
       try {
         setIsLoading(true)
+        setError(null)
         
-        // 這裡應該從API或本地存儲獲取回測結果
-        // 目前使用模擬數據
+        // 解碼回測參數
+        const backtestParams = JSON.parse(decodeURIComponent(resolvedParams.id));
         
         // 獲取策略註冊表
         const registry = StrategyRegistry.getInstance()
         
-        // 假設使用均線交叉策略
-        const strategy = registry.getStrategy('ma_crossover')
+        // 獲取選擇的策略
+        const strategy = registry.getStrategy(backtestParams.strategyId)
         
         if (!strategy) {
           throw new Error('找不到策略')
         }
         
-        // 模擬市場數據
-        const mockMarketData = {
-          symbol: '2330.TW',
-          timestamp: Array.from({ length: 100 }, (_, i) => Date.now() - (99 - i) * 24 * 60 * 60 * 1000),
-          open: Array.from({ length: 100 }, () => Math.random() * 100 + 500),
-          high: Array.from({ length: 100 }, () => Math.random() * 100 + 550),
-          low: Array.from({ length: 100 }, () => Math.random() * 100 + 450),
-          close: Array.from({ length: 100 }, () => Math.random() * 100 + 500),
-          volume: Array.from({ length: 100 }, () => Math.random() * 1000000)
+        // 從 Yahoo Finance API 獲取市場數據
+        const response = await fetch(`/api/market-data?symbol=${backtestParams.symbol}&startDate=${backtestParams.startDate}&endDate=${backtestParams.endDate}`);
+        
+        if (!response.ok) {
+          const errorData = await response.json() as { error: string };
+          throw new Error(errorData.error || '獲取市場數據失敗')
         }
         
-        // 回測設置
-        const backtestSettings = {
-          symbol: '2330.TW',
-          startDate: mockMarketData.timestamp[0],
-          endDate: mockMarketData.timestamp[mockMarketData.timestamp.length - 1],
-          initialCapital: 1000000,
-          positionSize: 10,
-          commissionRate: 0.1425,
-          slippage: 0.1,
-          strategyId: strategy.id,
-          strategyParams: {
-            shortPeriod: 5,
-            longPeriod: 20
-          }
+        const marketData = await response.json() as MarketData;
+        
+        if (!marketData || !marketData.timestamp || marketData.timestamp.length === 0) {
+          throw new Error('獲取到的市場數據無效')
         }
         
         // 創建回測引擎
-        const engine = new BacktestEngine(backtestSettings, mockMarketData)
+        const engine = new BacktestEngine(backtestParams, marketData)
         
         // 執行回測
         const backtestResult = engine.run((data, index, params) => {
@@ -79,13 +70,14 @@ export default function BacktestResultPage({
         setResult(backtestResult)
       } catch (error) {
         console.error('載入回測結果時出錯:', error)
+        setError(error instanceof Error ? error.message : '未知錯誤')
       } finally {
         setIsLoading(false)
       }
     }
     
     loadResult()
-  }, [])
+  }, [resolvedParams.id])
   
   if (isLoading) {
     return (
@@ -106,7 +98,7 @@ export default function BacktestResultPage({
     )
   }
   
-  if (!result) {
+  if (error || !result) {
     return (
       <main className="flex min-h-screen flex-col p-8">
         <div className="flex items-center mb-8">
@@ -118,8 +110,11 @@ export default function BacktestResultPage({
           <h1 className="text-3xl font-bold">回測結果</h1>
         </div>
         
-        <div className="flex items-center justify-center h-64">
-          <p className="text-muted-foreground">無法載入回測結果</p>
+        <div className="flex flex-col items-center justify-center h-64">
+          <p className="text-red-600 mb-4">{error || '無法載入回測結果'}</p>
+          <Link href="/backtest">
+            <Button>返回回測頁面</Button>
+          </Link>
         </div>
       </main>
     )

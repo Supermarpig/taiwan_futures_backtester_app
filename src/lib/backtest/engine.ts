@@ -51,12 +51,36 @@ export class BacktestEngine {
    * @returns 回測結果
    */
   public run(generateSignals: (data: MarketData, index: number, params: any) => TradeDirection): BacktestResult {
+    // 驗證日期範圍
+    const now = new Date();
+    const startDate = new Date(this.settings.startDate);
+    const endDate = new Date(this.settings.endDate);
+
+    if (startDate > now || endDate > now) {
+      throw new Error('回測日期不能超過當前日期');
+    }
+
+    if (startDate > endDate) {
+      throw new Error('開始日期不能晚於結束日期');
+    }
+
     // 找到開始和結束日期對應的索引
     const startIndex = this.findDateIndex(this.settings.startDate);
     const endIndex = this.findDateIndex(this.settings.endDate);
     
-    if (startIndex === -1 || endIndex === -1 || startIndex >= endIndex) {
-      throw new Error('無效的回測日期範圍');
+    // 檢查市場數據的有效性
+    if (!this.marketData || !this.marketData.timestamp || this.marketData.timestamp.length === 0) {
+      throw new Error('市場數據無效');
+    }
+
+    // 檢查日期範圍的有效性
+    if (startIndex === -1 || endIndex === -1) {
+      throw new Error('無法在市場數據中找到對應的日期');
+    }
+
+    // 確保有足夠的數據點
+    if (endIndex - startIndex < 1) {
+      throw new Error('回測期間內沒有足夠的市場數據，請調整日期範圍');
     }
 
     // 遍歷每個交易日
@@ -490,11 +514,23 @@ export class BacktestEngine {
    * @returns 索引
    */
   private findDateIndex(timestamp: number): number {
+    // 將時間戳記轉換為當天的開始時間（0點0分0秒）
+    const targetDate = new Date(timestamp);
+    targetDate.setHours(0, 0, 0, 0);
+    const targetTimestamp = Math.floor(targetDate.getTime() / 1000);
+
+    // 遍歷所有時間戳記
     for (let i = 0; i < this.marketData.timestamp.length; i++) {
-      if (this.marketData.timestamp[i] >= timestamp) {
+      const currentDate = new Date(this.marketData.timestamp[i] * 1000);
+      currentDate.setHours(0, 0, 0, 0);
+      const currentTimestamp = Math.floor(currentDate.getTime() / 1000);
+
+      if (currentTimestamp >= targetTimestamp) {
         return i;
       }
     }
-    return -1;
+
+    // 如果找不到完全匹配的日期，返回最後一個索引
+    return this.marketData.timestamp.length - 1;
   }
 }
